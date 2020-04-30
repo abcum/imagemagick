@@ -1,0 +1,398 @@
+LIBRAW_VERSION ?= 0.19.5
+LIBPNG_VERSION ?= 1.6.37
+LIBJPG_VERSION ?= 9d
+LIBUUID_VERSION ?= 2.33
+LIBJP2_VERSION ?= 2.3.1
+LIBTIFF_VERSION ?= 4.1.0
+LIBXML2_VERSION ?= 2.9.9
+GLIB_VERSION ?= 2.58.3
+FONTCONFIG_VERSION ?= 2.13.0
+FREETYPE_VERSION ?= 2.10.0
+LIBFFI_VERSION ?= 3.2.1
+LIBHEIF_VERSION ?= 1.3.2
+BZIP2_VERSION ?= 1.0.6
+HARFBUZZ_VERSION ?= 2.4.0
+LIBWEBP_VERSION ?= 1.1.0
+LIBDE265_VERSION ?= 1.0.5
+IMAGEMAGICK_VERSION ?= 7.0.10-9
+
+TARGET_DIR ?= /tmp/
+PROJECT_ROOT = $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+CACHE_DIR=$(PROJECT_ROOT)build/cache
+
+.ONESHELL:
+
+CONFIGURE = PKG_CONFIG_PATH=$(CACHE_DIR)/lib/pkgconfig \
+	./configure \
+		CPPFLAGS=-I$(CACHE_DIR)/include \
+		LDFLAGS=-L$(CACHE_DIR)/lib \
+		--disable-dependency-tracking \
+		--disable-examples \
+		--disable-shared \
+		--enable-static \
+		--without-threads \
+		--disable-openmp \
+		--prefix=$(CACHE_DIR)
+
+# ------------------------------
+# init
+# ------------------------------
+
+# init:
+# 	yum install -y gcc gcc-c++ cmake3 intltool flex bison shared-mime-info gperf
+
+# ------------------------------
+# libbz2
+# ------------------------------
+
+BZIP2_SOURCE=bzip2-$(BZIP2_VERSION).tar.gz
+LIBBZ2=$(CACHE_DIR)/lib/libbz2.a
+
+$(BZIP2_SOURCE):
+	curl -LO http://prdownloads.sourceforge.net/bzip2/bzip2-$(BZIP2_VERSION).tar.gz
+
+$(LIBBZ2): $(BZIP2_SOURCE)
+	tar xf $<
+	cd bzip2-*
+	make libbz2.a
+	make install PREFIX=$(CACHE_DIR)
+
+# ------------------------------
+# libffi
+# ------------------------------
+
+LIBFFI_SOURCE=libffi-$(LIBFFI_VERSION).tar.gz
+LIBFFI=$(CACHE_DIR)/lib64/libffi.a
+
+$(LIBFFI_SOURCE):
+	curl -LO ftp://sourceware.org/pub/libffi/$(LIBFFI_SOURCE)
+
+$(LIBFFI): $(LIBFFI_SOURCE)
+	tar xf $<
+	cd libffi*
+	$(CONFIGURE)
+	make
+	make install
+
+# ------------------------------
+# glib
+# ------------------------------
+
+GLIB_SOURCE=glib-$(GLIB_VERSION).tar.xz
+GLIB_MIN=$(basename $(GLIB_VERSION))
+GLIB_MAJ=$(basename $(GLIB_MIN))
+GLIB=$(CACHE_DIR)/lib/libglib-$(GLIB_MAJ).0.a
+
+$(GLIB_SOURCE):
+	curl -LO http://ftp.gnome.org/pub/gnome/sources/glib/$(GLIB_MIN)/$(GLIB_SOURCE)
+
+$(GLIB): $(GLIB_SOURCE) $(LIBFFI)
+	tar xf $<
+	cd glib*
+	$(PKG_CONFIG) ./autogen.sh
+	$(CONFIGURE) \
+		--disable-gtk-doc \
+		--disable-man \
+		--disable-libmount \
+		--disable-fam \
+		--disable-libelf \
+		--disable-xattr \
+		--disable-installed-tests \
+		--with-pcre=internal
+	make
+	make install
+
+# ------------------------------
+# libxml2
+# ------------------------------
+
+LIBXML2_SOURCE=libxml2-$(LIBXML2_VERSION).tar.gz
+LIBXML2=$(CACHE_DIR)/lib/libxml2.a
+
+$(LIBXML2_SOURCE):
+	curl -LO ftp://xmlsoft.org/libxml2/$(LIBXML2_SOURCE)
+
+$(LIBXML2): $(LIBXML2_SOURCE)
+	tar xf $<
+	cd libxml2*
+	$(CONFIGURE) \
+		--without-history \
+		--without-python
+	make
+	make install
+
+# ------------------------------
+# libuuid
+# ------------------------------
+
+LIBUUID_SOURCE=util-linux-$(LIBUUID_VERSION).tar.xz
+LIBUUID=$(CACHE_DIR)/lib/libuuid.a
+
+$(LIBUUID_SOURCE):
+	curl -LO https://mirrors.edge.kernel.org/pub/linux/utils/util-linux/v$(LIBUUID_VERSION)/$(LIBUUID_SOURCE)
+
+$(LIBUUID): $(LIBUUID_SOURCE)
+	tar xf $<
+	cd util-linux*
+	$(CONFIGURE) \
+		--disable-all-programs \
+		--enable-libuuid
+	make
+	make install
+
+# ------------------------------
+# libraw
+# ------------------------------
+
+LIBRAW_SOURCE=libraw-$(LIBRAW_VERSION).tar.gz
+LIBRAW=$(CACHE_DIR)/lib/libraw.a
+
+$(LIBRAW_SOURCE):
+	curl -L https://www.libraw.org/data/LibRaw-$(LIBRAW_VERSION).tar.gz -o $(LIBRAW_SOURCE)
+
+libraw $(LIBRAW): $(LIBRAW_SOURCE)
+	tar xf $<
+	cd LibRaw-*
+	autoreconf -fiv
+	$(CONFIGURE)
+	make install
+
+# ------------------------------
+# libjpg
+# ------------------------------
+
+LIBJPG_SOURCE=jpegsrc.v$(LIBJPG_VERSION).tar.gz
+LIBJPG=$(CACHE_DIR)/lib/libjpeg.a
+
+$(LIBJPG_SOURCE):
+	curl -LO http://ijg.org/files/$(LIBJPG_SOURCE)
+
+$(LIBJPG): $(LIBJPG_SOURCE)
+	tar xf $<
+	cd jpeg*
+	$(CONFIGURE)
+	make
+	make install
+
+# ------------------------------
+# libpng
+# ------------------------------
+
+LIBPNG_SOURCE=libpng-$(LIBPNG_VERSION).tar.xz
+LIBPNG=$(CACHE_DIR)/lib/libpng.a
+
+$(LIBPNG_SOURCE):
+	curl -LO http://prdownloads.sourceforge.net/libpng/$(LIBPNG_SOURCE)
+
+$(LIBPNG): $(LIBPNG_SOURCE)
+	tar xf $<
+	cd libpng*
+	$(CONFIGURE)
+	make
+	make install
+
+# ------------------------------
+# libwebp
+# ------------------------------
+
+LIBWEBP_SOURCE=libwebp-$(LIBWEBP_VERSION).tar.gz
+LIBWEBP=$(CACHE_DIR)/lib/libwebp.a
+
+$(LIBWEBP_SOURCE):
+	curl -L https://github.com/webmproject/libwebp/archive/v$(LIBWEBP_VERSION).tar.gz -o $(LIBWEBP_SOURCE)
+
+$(LIBWEBP): $(LIBWEBP_SOURCE)
+	tar xf $<
+	cd libwebp-*
+	sh autogen.sh
+	$(CONFIGURE)
+	make
+	make install
+
+# ------------------------------
+# libtiff
+# ------------------------------
+
+LIBTIFF_SOURCE=tiff-$(LIBTIFF_VERSION).tar.gz
+LIBTIFF=$(CACHE_DIR)/lib/libtiff.a
+
+$(LIBTIFF_SOURCE):
+	curl -LO http://download.osgeo.org/libtiff/$(LIBTIFF_SOURCE)
+
+$(LIBTIFF): $(LIBTIFF_SOURCE) $(LIBJPG)
+	tar xf $<
+	cd tiff-*
+	$(CONFIGURE)
+	make
+	make install
+
+# ------------------------------
+# libde265
+# ------------------------------
+
+LIBDE265_SOURCE=libde265-$(LIBDE265_VERSION).tar.gz
+LIBDE265=$(CACHE_DIR)/lib/libde265.a
+
+$(LIBDE265_SOURCE):
+	curl -LO https://github.com/strukturag/libde265/releases/download/v$(LIBDE265_VERSION)/$(LIBDE265_SOURCE)
+
+$(LIBDE265): $(LIBDE265_SOURCE)
+	tar xf $<
+	cd libde265-*
+	sh autogen.sh
+	$(CONFIGURE)
+	make
+	make install
+
+# ------------------------------
+# libheif
+# ------------------------------
+
+LIBHEIF_SOURCE=libheif-$(LIBHEIF_VERSION).tar.gz
+LIBHEIF=$(CACHE_DIR)/lib/libheic.a
+
+$(LIBHEIF_SOURCE):
+	curl -L https://github.com/strukturag/libheif/archive/v$(LIBHEIF_VERSION).tar.gz -o $(LIBHEIF_SOURCE)
+
+$(LIBHEIF): $(LIBHEIF_SOURCE) $(LIBDE265)
+	tar xf $<
+	cd libheif-*
+	sh autogen.sh
+	$(CONFIGURE)
+	make
+	make install
+
+# ------------------------------
+# libopenjp2
+# ------------------------------
+
+LIBJP2_SOURCE=openjp2-$(LIBJP2_VERSION).tar.gz
+LIBJP2=$(CACHE_DIR)/lib/libopenjp2.a
+
+$(LIBJP2_SOURCE):
+	curl -L https://github.com/uclouvain/openjpeg/archive/v$(LIBJP2_VERSION).tar.gz -o $(LIBJP2_SOURCE)
+
+$(LIBJP2): $(LIBJP2_SOURCE) $(LIBPNG) $(LIBTIFF)
+	tar xf $<
+	cd openjpeg-*
+	mkdir -p build
+	cd build
+	PKG_CONFIG_PATH=$(CACHE_DIR)/lib/pkgconfig cmake .. \
+		-DCMAKE_BUILD_TYPE=Release \
+		-DCMAKE_INSTALL_PREFIX=$(CACHE_DIR) \
+		-DBUILD_SHARED_LIBS:bool=off \
+		-DBUILD_CODEC:bool=off
+	make clean
+	make install
+
+# ------------------------------
+# libfreetype
+# ------------------------------
+
+FREETYPE_SOURCE=freetype-$(FREETYPE_VERSION).tar.gz
+LIBFREETYPE=$(CACHE_DIR)/lib/libfreetype.a
+
+HARFBUZZ_SOURCE=harfbuzz-$(HARFBUZZ_VERSION).tar.bz2
+LIBHARFBUZZ=$(CACHE_DIR)/lib/libharfbuzz.a
+
+$(FREETYPE_SOURCE):
+	curl -LO https://download.savannah.gnu.org/releases/freetype/$(FREETYPE_SOURCE)
+
+$(HARFBUZZ_SOURCE):
+	curl -LO https://www.freedesktop.org/software/harfbuzz/release/$(HARFBUZZ_SOURCE)
+
+FT_WITHOUT_HB_DIR=$(PROJECT_ROOT)build/freetype-$(FREETYPE_VERSION)-without-harfbuzz
+FT_WITHOUT_HB=$(FT_WITHOUT_HB_DIR)/objs/.libs/libfreetype.a
+
+$(FT_WITHOUT_HB): $(FREETYPE_SOURCE)
+	tar xf $< -C /tmp
+	rm -rf $(FT_WITHOUT_HB_DIR)
+	mv /tmp/freetype-$(FREETYPE_VERSION) $(FT_WITHOUT_HB_DIR)
+	cd $(FT_WITHOUT_HB_DIR)
+	$(CONFIGURE) --without-harfbuzz
+	make
+	make install
+
+$(LIBHARFBUZZ): $(HARFBUZZ_SOURCE) $(FT_WITHOUT_HB)
+	tar xf $<
+	cd harfbuzz-$(HARFBUZZ_VERSION)
+	$(CONFIGURE) \
+		--with-freetype
+	make
+	make install
+
+$(LIBFREETYPE): $(FREETYPE_SOURCE) $(GLIB) $(LIBPNG) $(LIBBZ2) $(LIBHARFBUZZ)
+	tar xf $<
+	cd freetype-$(FREETYPE_VERSION)
+	$(CONFIGURE) \
+		--with-harfbuzz \
+		--with-png \
+		--with-bzip2
+	make distclean clean
+	make
+	make install
+
+# ------------------------------
+# fontconfig
+# ------------------------------
+
+FONTCONFIG_SOURCE=fontconfig-$(FONTCONFIG_VERSION).tar.bz2
+LIBFONTCONFIG=$(CACHE_DIR)/lib/libfontconfig.a
+
+$(FONTCONFIG_SOURCE):
+	curl -LO https://www.freedesktop.org/software/fontconfig/release/$(FONTCONFIG_SOURCE)
+
+$(LIBFONTCONFIG): $(FONTCONFIG_SOURCE) $(LIBXML2) $(LIBFREETYPE) $(LIBUUID)
+	tar xf $<
+	cd fontconfig-$(FONTCONFIG_VERSION)
+	$(CONFIGURE) --enable-libxml2
+	make
+	make install
+
+# ------------------------------
+# ImageMagick
+# ------------------------------
+
+IMAGE_MAGICK_SOURCE=ImageMagick-$(IMAGEMAGICK_VERSION).tar.gz
+
+$(IMAGE_MAGICK_SOURCE):
+	curl -L https://github.com/ImageMagick/ImageMagick/archive/$(IMAGEMAGICK_VERSION).tar.gz -o $(IMAGE_MAGICK_SOURCE)
+
+LIBS:=$(LIBJPG) \
+	$(LIBRAW) \
+	$(LIBPNG) \
+	$(LIBJP2) \
+	$(LIBTIFF) \
+	$(LIBBZ2) \
+	$(LIBWEBP) \
+	$(LIBDE265) \
+	$(LIBHEIF) \
+	$(LIBFREETYPE)
+
+$(TARGET_DIR)/bin/magick: $(IMAGE_MAGICK_SOURCE) $(LIBS)
+	tar xf $<
+	cd ImageMa*
+	PKG_CONFIG_PATH=$(CACHE_DIR)/lib/pkgconfig \
+		./configure \
+		CPPFLAGS=-I$(CACHE_DIR)/include \
+		LDFLAGS=-L$(CACHE_DIR)/lib \
+		CFLAGS=-I$(CACHE_DIR)/include \
+		--disable-dependency-tracking \
+		--disable-shared \
+		--enable-static \
+		--prefix=$(TARGET_DIR) \
+		--enable-delegate-build \
+		--without-modules \
+		--without-threads \
+		--disable-openmp \
+		--disable-docs \
+		--without-magick-plus-plus \
+		--without-perl \
+		--without-x
+	make clean
+	make all
+	make install
+
+libs: $(LIBS)
+
+all: $(TARGET_DIR)/bin/magick
