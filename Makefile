@@ -1,9 +1,8 @@
 PROJECT_ROOT = $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 
-#DOCKER_IMAGE ?= lambci/lambda:nodejs12.x
 DOCKER_IMAGE ?= lambci/lambda-base-2:build
 
-TARGET ?=/tmp/
+TARGET ?=/tmp
 
 DOCKER = docker run -it --rm -w=/var/task/build
 
